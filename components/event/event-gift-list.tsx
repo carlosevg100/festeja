@@ -10,10 +10,11 @@ import {
   QrCode,
   Heart,
   Check,
-  Trophy,
+  Users,
+  Zap,
+  Star,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -27,455 +28,308 @@ interface EventGiftListProps {
 
 type FilterTab = 'todos' | 'disponiveis' | 'cotas';
 
-interface GiftModalState {
-  isOpen: boolean;
-  gift: Gift | null;
-  contributerName: string;
-  contributionAmount: string;
+const giftTypeConfig: Record<string, { icon: any; gradient: string; label: string }> = {
+  product: { icon: ShoppingBag, gradient: 'from-accent-pink to-accent-coral', label: 'Produto' },
+  quota: { icon: Users, gradient: 'from-accent-purple to-violet-500', label: 'Cota' },
+  experience: { icon: Sparkles, gradient: 'from-accent-gold to-amber-500', label: 'Experiencia' },
+  pix: { icon: Zap, gradient: 'from-emerald-400 to-green-500', label: 'PIX' },
+};
+
+function cn(...classes: (string | undefined | null | false)[]): string {
+  return classes.filter((cls): cls is string => typeof cls === 'string' && cls.length > 0).join(' ');
 }
 
 export function EventGiftList({ event }: EventGiftListProps) {
   const [activeTab, setActiveTab] = useState<FilterTab>('todos');
   const [reservedGifts, setReservedGifts] = useState<Set<string>>(new Set());
   const [reservedBy, setReservedBy] = useState<Record<string, string>>({});
-  const [giftContributions, setGiftContributions] = useState<
-    Record<string, number>
-  >({});
-  const [modal, setModal] = useState<GiftModalState>({
+  const [giftContributions, setGiftContributions] = useState<Record<string, number>>({});
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    gift: Gift | null;
+    contributerName: string;
+    contributionAmount: string;
+  }>({
     isOpen: false,
     gift: null,
     contributerName: '',
     contributionAmount: '',
   });
 
-  // Get gifts for this event
   const eventGifts = mockGifts.filter((g) => g.event_id === event.id);
 
-  // Initialize contributions
   const getGiftRaised = (giftId: string): number => {
-    if (giftContributions[giftId]) {
-      return giftContributions[giftId];
-    }
+    if (giftContributions[giftId]) return giftContributions[giftId];
     const gift = eventGifts.find((g) => g.id === giftId);
     return gift?.group_raised || 0;
   };
 
-  // Filter gifts
   const filteredGifts = eventGifts.filter((gift) => {
-    if (activeTab === 'disponiveis') {
-      return !reservedGifts.has(gift.id) && gift.status !== 'purchased';
-    }
-    if (activeTab === 'cotas') {
-      return gift.gift_type === 'quota' || gift.gift_type === 'experience' || gift.gift_type === 'pix';
-    }
+    if (activeTab === 'disponiveis') return !reservedGifts.has(gift.id) && gift.status !== 'purchased';
+    if (activeTab === 'cotas') return gift.gift_type === 'quota' || gift.gift_type === 'experience' || gift.gift_type === 'pix';
     return true;
   });
 
   const handleReserveClick = (gift: Gift) => {
-    if (gift.gift_type === 'product') {
-      setModal({
-        isOpen: true,
-        gift,
-        contributerName: '',
-        contributionAmount: '',
-      });
-    } else {
-      // For group gifts, show contribution modal
-      setModal({
-        isOpen: true,
-        gift,
-        contributerName: '',
-        contributionAmount: '',
-      });
-    }
+    setModal({ isOpen: true, gift, contributerName: '', contributionAmount: '' });
   };
 
   const handleConfirmReservation = () => {
     if (!modal.gift || !modal.contributerName.trim()) return;
-
     if (modal.gift.gift_type === 'product') {
       setReservedGifts((prev) => new Set([...prev, modal.gift!.id]));
-      setReservedBy((prev) => ({
-        ...prev,
-        [modal.gift!.id]: modal.contributerName,
-      }));
+      setReservedBy((prev) => ({ ...prev, [modal.gift!.id]: modal.contributerName }));
     } else {
-      // For group gifts, add contribution
       const amount = parseFloat(modal.contributionAmount) || 0;
       setGiftContributions((prev) => ({
         ...prev,
         [modal.gift!.id]: (prev[modal.gift!.id] || getGiftRaised(modal.gift!.id)) + amount,
       }));
     }
-
-    setModal({
-      isOpen: false,
-      gift: null,
-      contributerName: '',
-      contributionAmount: '',
-    });
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6 },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5 },
-    },
-  };
-
-  const getGiftEmoji = (type: string | GiftType): string => {
-    const emojis: Record<string, string> = {
-      product: '🎁',
-      quota: '🎯',
-      experience: '✨',
-      pix: '💰',
-    };
-    return emojis[type as string] || '🎁';
+    setModal({ isOpen: false, gift: null, contributerName: '', contributionAmount: '' });
   };
 
   const isGiftReserved = (gift: Gift) =>
     reservedGifts.has(gift.id) || gift.status === 'reserved' || gift.status === 'purchased';
 
-  const renderGiftCard = (gift: Gift) => {
-    const isReserved = isGiftReserved(gift);
-    const currentRaised = getGiftRaised(gift.id);
-
-    return (
-      <motion.div
-        key={gift.id}
-        variants={cardVariants}
-        layoutId={`gift-${gift.id}`}
-        className="h-full"
-      >
-        <Card
-          className={cn(
-            'overflow-hidden transition-all duration-300 flex flex-col h-full',
-            isReserved
-              ? 'opacity-60 bg-surface/50'
-              : 'hover:border-accent-pink/50 bg-surface',
-          )}
-        >
-          {/* Image/Placeholder */}
-          <div
-            className={cn(
-              'relative h-40 sm:h-48 overflow-hidden group',
-              isReserved ? 'bg-gray-800' : 'bg-gradient-to-br',
-            )}
-            style={
-              !isReserved && gift.gift_type !== 'pix'
-                ? {
-                    backgroundImage: 'linear-gradient(135deg, #FF69B4 0%, #FF1493 100%)',
-                  }
-                : isReserved
-                  ? undefined
-                  : {
-                      backgroundImage: 'linear-gradient(135deg, #5B21B6 0%, #7C3AED 100%)',
-                    }
-            }
-          >
-            {/* Product Image or Placeholder */}
-            {gift.image_url && gift.gift_type !== 'pix' ? (
-              <img
-                src={gift.image_url}
-                alt={gift.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-4xl opacity-40">
-                {getGiftEmoji(gift.gift_type)}
-              </div>
-            )}
-
-            {/* Badge Overlay */}
-            {isReserved && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                <div className="text-center">
-                  <Check className="w-8 h-8 text-success mx-auto mb-2" />
-                  <p className="text-white font-semibold text-sm">
-                    {gift.status === 'purchased'
-                      ? 'Meta atingida!'
-                      : 'Reservado'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Store Badge */}
-            {gift.store_name && gift.gift_type === 'product' && !isReserved && (
-              <div className="absolute top-3 right-3">
-                <Badge variant="accent" size="sm">
-                  {gift.store_name}
-                </Badge>
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3">
-            {/* Gift Type Badge */}
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{getGiftEmoji(gift.gift_type)}</span>
-              <Badge variant="info" size="sm">
-                {gift.gift_type === 'product'
-                  ? 'Produto'
-                  : gift.gift_type === 'quota'
-                    ? 'Cota'
-                    : gift.gift_type === 'experience'
-                      ? 'Experiência'
-                      : 'PIX'}
-              </Badge>
-            </div>
-
-            {/* Name */}
-            <h3 className="font-semibold text-white text-sm sm:text-base leading-tight">
-              {gift.name}
-            </h3>
-
-            {/* Description */}
-            {gift.description && (
-              <p className="text-text-muted text-xs sm:text-sm leading-relaxed">
-                {gift.description.length > 60
-                  ? `${gift.description.substring(0, 60)}...`
-                  : gift.description}
-              </p>
-            )}
-
-            {/* Progress for group gifts */}
-            {(gift.gift_type === 'quota' || gift.gift_type === 'experience' || gift.gift_type === 'pix') &&
-            gift.group_goal ? (
-              <div className="mt-auto pt-2">
-                <ProgressBar
-                  current={currentRaised}
-                  goal={gift.group_goal}
-                  showLabel={false}
-                  showPercentage={true}
-                  height="sm"
-                  animated={false}
-                />
-              </div>
-            ) : null}
-
-            {/* Price */}
-            <div className="mt-2 pt-3 border-t border-border">
-              <p className="text-accent-pink font-semibold text-lg">
-                {gift.price ? formatCurrency(gift.price) : 'Preço a consultar'}
-              </p>
-            </div>
-
-            {/* Reserved By */}
-            {isReserved && reservedBy[gift.id] && (
-              <p className="text-xs text-text-muted">
-                Reservado por{' '}
-                <span className="text-accent-pink font-semibold">
-                  {reservedBy[gift.id]}
-                </span>
-              </p>
-            )}
-          </div>
-
-          {/* Action Button */}
-          {!isReserved && (
-            <div className="p-4 sm:p-5 border-t border-border mt-auto">
-              <Button
-                onClick={() => handleReserveClick(gift)}
-                className="w-full py-2.5 text-sm font-semibold bg-gradient-primary hover:opacity-90 text-white transition-opacity"
-              >
-                {gift.gift_type === 'product' ? 'Quero dar esse!' : 'Contribuir'}
-              </Button>
-            </div>
-          )}
-        </Card>
-      </motion.div>
-    );
-  };
+  const tabs: { key: FilterTab; label: string }[] = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'disponiveis', label: 'Disponiveis' },
+    { key: 'cotas', label: 'Cotas & PIX' },
+  ];
 
   return (
     <motion.section
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: '-100px' }}
-      className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-bg-primary"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7 }}
+      viewport={{ once: true, margin: '-80px' }}
+      className="py-16 sm:py-20 px-4 sm:px-6 bg-bg-primary"
     >
-      <div className="max-w-6xl mx-auto">
-        {/* Title */}
-        <motion.div
-          className="flex items-center gap-3 mb-8 justify-center"
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <GiftIcon className="w-8 h-8 text-accent-pink" />
-          <h2 className="text-3xl sm:text-4xl font-bold text-white font-display">
-            Lista de Presentes
-          </h2>
-        </motion.div>
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-gold to-amber-500 flex items-center justify-center mx-auto mb-4">
+            <GiftIcon className="w-6 h-6 text-white" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold font-display mb-2">Lista de Presentes</h2>
+          <p className="text-sm text-text-secondary">{eventGifts.length} itens na lista</p>
+        </div>
 
-        {/* Filter Tabs */}
-        <motion.div
-          className="flex flex-wrap justify-center gap-3 mb-10 sm:mb-12"
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          {(['todos', 'disponiveis', 'cotas'] as FilterTab[]).map((tab) => (
-            <Button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+        {/* Filter tabs */}
+        <div className="flex justify-center gap-2 mb-10">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all duration-300',
-                activeTab === tab
-                  ? 'bg-gradient-primary text-white'
-                  : 'bg-border text-text-secondary hover:bg-border/80',
+                'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200',
+                activeTab === tab.key
+                  ? 'bg-white/[0.08] text-text-primary border border-white/[0.10]'
+                  : 'text-text-muted hover:text-text-secondary hover:bg-white/[0.03]'
               )}
             >
-              {tab === 'todos' ? 'Todos' : tab === 'disponiveis' ? 'Disponíveis' : 'Cotas & Experiências'}
-            </Button>
+              {tab.label}
+            </button>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Gifts Grid */}
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            visible: {
-              transition: {
-                staggerChildren: 0.05,
-              },
-            },
-          }}
-        >
-          {filteredGifts.map((gift) => renderGiftCard(gift))}
-        </motion.div>
+        {/* Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredGifts.map((gift, idx) => {
+            const reserved = isGiftReserved(gift);
+            const config = giftTypeConfig[gift.gift_type] || giftTypeConfig.product;
+            const TypeIcon = config.icon;
+            const currentRaised = getGiftRaised(gift.id);
+            const isGroupGift = gift.gift_type === 'quota' || gift.gift_type === 'experience' || gift.gift_type === 'pix';
+
+            return (
+              <motion.div
+                key={gift.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: idx * 0.05 }}
+                viewport={{ once: true }}
+                layoutId={`gift-${gift.id}`}
+              >
+                <motion.div
+                  whileHover={reserved ? {} : { y: -4 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    'group rounded-2xl overflow-hidden transition-all duration-300 h-full flex flex-col',
+                    reserved
+                      ? 'bg-white/[0.01] border border-white/[0.04] opacity-60'
+                      : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12]'
+                  )}
+                >
+                  {/* Image area */}
+                  <div className={`relative h-40 overflow-hidden bg-gradient-to-br ${config.gradient}`}>
+                    {/* Pattern */}
+                    <div className="absolute inset-0 opacity-10">
+                      <div className="absolute inset-0" style={{
+                        backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+                        backgroundSize: '20px 20px',
+                      }} />
+                    </div>
+
+                    {gift.image_url && gift.gift_type !== 'pix' ? (
+                      <img
+                        src={gift.image_url}
+                        alt={gift.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                          <TypeIcon className="w-7 h-7 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reserved overlay */}
+                    {reserved && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                          <Check className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Type badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-sm text-white text-[10px] font-medium">
+                        <TypeIcon className="w-3 h-3" />
+                        {config.label}
+                      </span>
+                    </div>
+
+                    {gift.store_name && gift.gift_type === 'product' && !reserved && (
+                      <div className="absolute top-3 right-3">
+                        <span className="px-2 py-1 rounded-lg bg-black/30 backdrop-blur-sm text-white text-[10px] font-medium">
+                          {gift.store_name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 p-4 sm:p-5 flex flex-col">
+                    <h3 className="text-sm font-bold text-text-primary mb-1 line-clamp-2">{gift.name}</h3>
+                    {gift.description && (
+                      <p className="text-xs text-text-muted mb-3 line-clamp-2">{gift.description}</p>
+                    )}
+
+                    {/* Progress for group gifts */}
+                    {isGroupGift && gift.group_goal && (
+                      <div className="mb-3">
+                        <ProgressBar
+                          current={currentRaised}
+                          goal={gift.group_goal}
+                          showLabel={false}
+                          showPercentage={true}
+                          height="sm"
+                          animated={false}
+                        />
+                      </div>
+                    )}
+
+                    <div className="mt-auto">
+                      {/* Price */}
+                      <div className="pt-3 border-t border-white/[0.04]">
+                        <p className="text-lg font-bold bg-gradient-to-r from-accent-pink to-accent-coral bg-clip-text text-transparent">
+                          {gift.price ? formatCurrency(gift.price) : 'Valor livre'}
+                        </p>
+                      </div>
+
+                      {reserved && reservedBy[gift.id] && (
+                        <p className="text-[10px] text-text-muted mt-1">
+                          Reservado por <span className="text-accent-pink font-medium">{reservedBy[gift.id]}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  {!reserved && (
+                    <div className="p-4 sm:p-5 pt-0">
+                      <Button onClick={() => handleReserveClick(gift)} fullWidth size="md">
+                        {gift.gift_type === 'product' ? 'Quero dar esse!' : 'Contribuir'}
+                      </Button>
+                    </div>
+                  )}
+                </motion.div>
+              </motion.div>
+            );
+          })}
+        </div>
 
         {filteredGifts.length === 0 && (
-          <motion.div
-            className="text-center py-12"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <GiftIcon className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
-            <p className="text-text-muted text-lg">
-              Nenhum presente disponível nesta categoria
-            </p>
-          </motion.div>
+          <div className="text-center py-16">
+            <GiftIcon className="w-12 h-12 text-text-muted/20 mx-auto mb-3" />
+            <p className="text-text-muted text-sm">Nenhum presente nesta categoria</p>
+          </div>
         )}
       </div>
 
       {/* Modal */}
       <Modal
         isOpen={modal.isOpen}
-        onClose={() =>
-          setModal({
-            isOpen: false,
-            gift: null,
-            contributerName: '',
-            contributionAmount: '',
-          })
-        }
-        title={
-          modal.gift?.gift_type === 'product'
-            ? 'Reservar Presente'
-            : 'Contribuir para o Presente'
-        }
+        onClose={() => setModal({ isOpen: false, gift: null, contributerName: '', contributionAmount: '' })}
+        title={modal.gift?.gift_type === 'product' ? 'Reservar Presente' : 'Contribuir'}
       >
-        <div className="space-y-6">
-          {/* Gift Preview */}
+        <div className="space-y-5">
           {modal.gift && (
-            <div className="bg-surface rounded-lg p-4 border border-border">
-              <p className="text-sm text-text-muted mb-1">Presente</p>
-              <p className="font-semibold text-white">{modal.gift.name}</p>
-              <p className="text-accent-pink font-semibold mt-2">
-                {modal.gift.price ? formatCurrency(modal.gift.price) : 'Preço a consultar'}
+            <div className="bg-white/[0.03] rounded-xl p-4 border border-white/[0.06]">
+              <p className="text-xs text-text-muted mb-1">Presente</p>
+              <p className="font-semibold text-text-primary text-sm">{modal.gift.name}</p>
+              <p className="text-accent-pink font-bold mt-1">
+                {modal.gift.price ? formatCurrency(modal.gift.price) : 'Valor livre'}
               </p>
             </div>
           )}
 
-          {/* Name Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-text-secondary">
-              Seu Nome *
-            </label>
+          <div>
+            <label className="block text-xs font-semibold text-text-secondary mb-2">Seu Nome *</label>
             <Input
               type="text"
-              placeholder="João Silva"
+              placeholder="Joao Silva"
               value={modal.contributerName}
-              onChange={(e) =>
-                setModal({
-                  ...modal,
-                  contributerName: e.target.value,
-                })
-              }
-              className="bg-bg-primary border-border"
+              onChange={(e) => setModal({ ...modal, contributerName: e.target.value })}
             />
           </div>
 
-          {/* Amount for group gifts */}
-          {modal.gift &&
-          (modal.gift.gift_type === 'quota' ||
-            modal.gift.gift_type === 'experience' ||
-            modal.gift.gift_type === 'pix') ? (
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-text-secondary">
-                Quanto quer contribuir? (R$) *
-              </label>
+          {modal.gift && (modal.gift.gift_type === 'quota' || modal.gift.gift_type === 'experience' || modal.gift.gift_type === 'pix') && (
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-2">Quanto quer contribuir? (R$) *</label>
               <Input
                 type="number"
                 placeholder="100.00"
                 value={modal.contributionAmount}
-                onChange={(e) =>
-                  setModal({
-                    ...modal,
-                    contributionAmount: e.target.value,
-                  })
-                }
-                className="bg-bg-primary border-border"
+                onChange={(e) => setModal({ ...modal, contributionAmount: e.target.value })}
                 step="10"
                 min="0"
               />
             </div>
-          ) : null}
+          )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <Button
-              onClick={() =>
-                setModal({
-                  isOpen: false,
-                  gift: null,
-                  contributerName: '',
-                  contributionAmount: '',
-                })
-              }
-              className="flex-1 bg-border text-text-secondary hover:bg-border/80"
+              variant="secondary"
+              fullWidth
+              onClick={() => setModal({ isOpen: false, gift: null, contributerName: '', contributionAmount: '' })}
             >
               Cancelar
             </Button>
             <Button
+              fullWidth
               onClick={handleConfirmReservation}
               disabled={
                 !modal.contributerName.trim() ||
                 (modal.gift != null &&
-                  (modal.gift.gift_type === 'quota' ||
-                    modal.gift.gift_type === 'experience' ||
-                    modal.gift.gift_type === 'pix') &&
+                  (modal.gift.gift_type === 'quota' || modal.gift.gift_type === 'experience' || modal.gift.gift_type === 'pix') &&
                   !modal.contributionAmount) ||
                 modal.gift == null
               }
-              className="flex-1 bg-gradient-primary hover:opacity-90 text-white disabled:opacity-50"
             >
               Confirmar
             </Button>
@@ -484,11 +338,4 @@ export function EventGiftList({ event }: EventGiftListProps) {
       </Modal>
     </motion.section>
   );
-}
-
-// Helper function
-function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes
-    .filter((cls): cls is string => typeof cls === 'string' && cls.length > 0)
-    .join(' ');
 }

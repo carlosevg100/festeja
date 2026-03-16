@@ -35,16 +35,12 @@ const Modal = ({
   showCloseButton = true,
 }: ModalProps) => {
   const handleBackdropClick = useCallback(() => {
-    if (closeOnBackdropClick) {
-      onClose();
-    }
+    if (closeOnBackdropClick) onClose();
   }, [closeOnBackdropClick, onClose]);
 
   const handleEscapeKey = useCallback(
     (e: KeyboardEvent) => {
-      if (closeOnEscape && e.key === 'Escape') {
-        onClose();
-      }
+      if (closeOnEscape && e.key === 'Escape') onClose();
     },
     [closeOnEscape, onClose],
   );
@@ -53,7 +49,6 @@ const Modal = ({
     if (isOpen) {
       document.addEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'hidden';
-
       return () => {
         document.removeEventListener('keydown', handleEscapeKey);
         document.body.style.overflow = '';
@@ -71,20 +66,19 @@ const Modal = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={handleBackdropClick}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            aria-hidden="true"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           />
 
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] as const }}
               onClick={(e) => e.stopPropagation()}
               className={cn(
-                'bg-bg-secondary backdrop-blur-xl border border-border rounded-3xl',
-                'shadow-card overflow-hidden',
+                'bg-bg-secondary/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl',
+                'shadow-2xl shadow-black/30 overflow-hidden',
                 sizeStyles[size],
               )}
               role="dialog"
@@ -92,17 +86,9 @@ const Modal = ({
               aria-labelledby="modal-title"
             >
               {(title || showCloseButton) && (
-                <div
-                  className={cn(
-                    'flex items-center justify-between p-6 border-b border-border',
-                    'bg-gradient-to-r from-bg-secondary to-bg-tertiary',
-                  )}
-                >
+                <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
                   {title && (
-                    <h2
-                      id="modal-title"
-                      className="text-xl font-bold text-text-primary font-display"
-                    >
+                    <h2 id="modal-title" className="text-base font-bold text-text-primary font-display">
                       {title}
                     </h2>
                   )}
@@ -111,22 +97,16 @@ const Modal = ({
                       whileHover={{ rotate: 90, scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={onClose}
-                      className={cn(
-                        'flex items-center justify-center w-10 h-10',
-                        'rounded-full bg-surface hover:bg-surface-hover',
-                        'transition-colors duration-200',
-                        'text-text-secondary hover:text-text-primary',
-                        title ? 'ml-auto' : '',
-                      )}
+                      className="flex items-center justify-center w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition-colors text-text-muted hover:text-text-primary ml-auto"
                       aria-label="Close modal"
                     >
-                      <X size={20} />
+                      <X size={16} />
                     </motion.button>
                   )}
                 </div>
               )}
 
-              <div className="p-6">{children}</div>
+              <div className="p-5">{children}</div>
             </motion.div>
           </div>
         </>

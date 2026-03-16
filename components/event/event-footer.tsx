@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, PartyPopper } from 'lucide-react';
 
 export function EventFooter() {
   return (
@@ -10,53 +10,32 @@ export function EventFooter() {
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
-      className="py-12 sm:py-16 px-4 sm:px-6 bg-bg-primary border-t border-border"
+      className="py-12 sm:py-16 px-4 sm:px-6 bg-bg-primary border-t border-white/[0.04]"
     >
-      <div className="max-w-4xl mx-auto text-center space-y-6">
-        {/* Main Text */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-text-secondary text-base sm:text-lg"
-        >
-          Organizado com 💖 no{' '}
-          <span className="text-white font-semibold">Festeja</span>
-        </motion.p>
-
-        {/* CTA Link */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-        >
-          <Link href="/">
-            <motion.button
-              whileHover={{ gap: '10px' }}
-              className="inline-flex items-center gap-2 text-accent-pink hover:text-accent-pink/80 font-semibold transition-colors group"
-            >
-              Crie sua festa também
-              <motion.div
-                animate={{ x: [0, 4, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <ArrowRight className="w-4 h-4" />
-              </motion.div>
-            </motion.button>
+      <div className="max-w-3xl mx-auto text-center space-y-5">
+        <div className="flex items-center justify-center gap-2 text-text-secondary text-sm">
+          <span>Organizado com</span>
+          <div className="w-5 h-5 rounded bg-gradient-to-br from-accent-pink to-accent-coral flex items-center justify-center">
+            <PartyPopper className="w-3 h-3 text-white" />
+          </div>
+          <Link href="/" className="font-bold text-text-primary hover:text-accent-pink transition-colors">
+            Festeja
           </Link>
-        </motion.div>
+        </div>
 
-        {/* Copyright */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-          className="text-text-muted text-xs sm:text-sm pt-4 border-t border-border"
-        >
-          © 2026 Festeja. Todos os direitos reservados.
-        </motion.p>
+        <Link href="/">
+          <motion.span
+            whileHover={{ gap: '10px' }}
+            className="inline-flex items-center gap-2 text-accent-pink hover:text-accent-pink/80 text-sm font-semibold transition-colors"
+          >
+            Crie sua festa tambem
+            <ArrowRight className="w-4 h-4" />
+          </motion.span>
+        </Link>
+
+        <p className="text-text-muted text-xs pt-4 border-t border-white/[0.04]">
+          2026 Festeja by Olpi Technologies
+        </p>
       </div>
     </motion.footer>
   );
